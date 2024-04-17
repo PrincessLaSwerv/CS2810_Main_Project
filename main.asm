@@ -21,6 +21,7 @@ START       LEA   R0, PROMPT_START ; Load prompt for start time
        
 EXIT        TRAP X25   ; HALT
 
+;__SubRoutine_________________________________________________________________________
 GET_CHAR    PUTS
             GETC
             OUT
@@ -67,7 +68,7 @@ MULTITENC:
             ADD     R5, R5 , R6 ; Adding "C" and "D" together 
             ; R5 Successfully holds the minutes "(--:MM)" Portion
             RET
-
+;_SubRoutine^^^________________________________________________________________________
 
 CONVERT_ASC_TO_DEC  .FILL #-48
 ASCII	            .FILL #48 
