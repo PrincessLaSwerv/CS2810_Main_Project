@@ -5,18 +5,27 @@
             AND   R1, R1, #0 ; Clear R1
             AND   R2, R2, #0 ; Clear R2
             LD    R3, CONVERT_ASC_TO_DEC ; Converts ASCII to Decimal within Register (#-48)
+            
+            
        
 START       LEA   R0, PROMPT_START ; Load prompt for start time
             JSR   GET_CHAR
             ST    R2, Start_HH    ;Saving Start (HH:--) after return 
             ST    R5, Start_MM    ;Saving Start (--:MM) after return 
+            JSR   STARTCALC
+            ST    R3, STARTINMIN
+            
 
             LEA   R0, PROMPT_END   ; Load prompt for end time
             JSR   GET_CHAR
             ST    R2, End_HH    ;Saving End (HH:--) after return 
             ST    R5, End_MM    ;Saving End (--:MM) after return 
+            JSR   STARTCALC
+            ST    R3, ENDINMIN
             
-            
+
+
+            ; End of the program
 
        
 EXIT        TRAP X25   ; HALT
@@ -45,7 +54,9 @@ GET_CHAR    PUTS
             ST      R4, SaveR4
             AND     R4,R4, #0   ;Clear R4
             
+
 MULTITENA:
+
             ADD     R4,R4,R2   ;Add tens value to itself 10 times
             ADD     R1,R1, #-1  ;decreasing counter
             BRp     MULTITENA    ;Continue loop until 0
@@ -65,10 +76,33 @@ MULTITENC:
             
             AND     R5, R5, #0  ;Clear R5
             ADD     R5,R5,R4    ;Move result to R5 
-            ADD     R5, R5 , R6 ; Adding "C" and "D" together 
+            ADD     R5, R5 , R6 ;Adding "C" and "D" together 
             ; R5 Successfully holds the minutes "(--:MM)" Portion
             RET
 ;_SubRoutine^^^________________________________________________________________________
+
+
+STARTCALC:
+            ;(HH:--) Saved in R2
+            ;(--:MM) Saved in R5  
+            LD      R1, HOUR    ;Load 60
+            AND     R4,R4, #0   ;Clear R4
+
+MULTISIXTY:
+
+            ADD     R4,R4,R2    ;Add tens value to itself 60 times
+            ADD     R1,R1, #-1  ;decreasing counter
+            BRp     MULTISIXTY  ;Continue loop until 0
+
+            AND     R3,R3, #0   ;Clear R3
+            ADD     R3,R3, R4   ;Move R4 result back to R3 
+            ADD     R3,R3, R5   ;Adding HH and MM result in R3 
+            ;R3 Successfully holds the hour combined HH and MM as just MINUTES
+
+            RET
+
+;_SubRoutine^^^________________________________________________________________________
+
 
 CONVERT_ASC_TO_DEC  .FILL #-48
 ASCII	            .FILL #48 
@@ -78,7 +112,7 @@ START_TIME          .BLKW 2
 END_TIME            .BLKW 2
 PROMPT_START        .STRINGZ "Enter start time using military Time(HH:MM): "
 PROMPT_END          .STRINGZ "\nEnter end time using military Time(HH:MM): "
-ERRORMSG            .STRINGZ "Not a valid input"
+ERRORMSG            .STRINGZ "\nNot a valid input"
 
 SaveR1              .FILL   x0000
 SaveR2              .FILL   x0000
@@ -90,6 +124,9 @@ Start_HH            .FILL   x0000
 Start_MM            .FILL   x0000
 End_HH              .FILL   x0000
 End_MM              .FILL   x0000
+STARTINMIN          .FILL   x0000
+ENDINMIN            .FILL   x0000
+HOUR                .FILL   #60
+NEW_LINE            .STRINGZ "\n"
 
-
-            .END
+    .END
