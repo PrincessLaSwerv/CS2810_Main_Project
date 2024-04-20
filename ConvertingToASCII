@@ -1,0 +1,218 @@
+; Simulate time puncher
+; When you see a '^' it is a comment reffering to the line above
+;       
+.ORIG x3000
+            AND   R1, R1, #0 ; Clear R1
+            AND   R2, R2, #0 ; Clear R2
+            LD    R3, CONVERT_ASC_TO_DEC ; Converts ASCII to Decimal within Register (#-48)
+            
+            
+                                    ;1
+START       LEA   R0, PROMPT_START ; Load prompt for start time
+            JSR   GET_CHAR          ;2
+            ST    R2, Start_HH    ;Saving Start (HH:--) after return 
+            ST    R5, Start_MM    ;Saving Start (--:MM) after return 
+            JSR   STARTCALC         ;3
+            ST    R3, STARTINMIN  ;Saving Start time in MM
+            
+
+            LEA   R0, PROMPT_END   ; Load prompt for end time
+            JSR   GET_CHAR          ;4
+            ST    R2, End_HH    ;Saving End (HH:--) after return 
+            ST    R5, End_MM    ;Saving End (--:MM) after return 
+            JSR   STARTCALC         ;5
+            ST    R3, ENDINMIN    ;Saving End time in MM
+            
+                                    ;6
+            LD    R2, STARTINMIN 
+            LD    R3, ENDINMIN
+            NOT   R2, R2        ;Should be start time negative
+            ADD   R3, R3, R2    ;Gettng the difference in end and start time
+            
+            
+            LD    R1, DIVIDEBYHOUR      ;Loading 60 into R1 to divide
+            AND   R2, R2, #0    ;Clear R2 to store quotient hours
+            AND   R4, R4, #0    ;Clear R4 to store remainder minutes
+            ADD   R2, R3, #0    ;Copy total minutes to R2 for division
+            
+DIVIDE:     
+            ADD   R2, R2, R1    ; Subtract 60 from the total minutes
+            ADD   R4, R4, #1    ; Increment quotient hours
+            BRzp   DIVIDE        ; Continue until total minutes < 60
+            
+            ;R2 contains the remainder minutes
+            ;R4 contains the quotient hours
+            
+            BRz   NO_FRACTION
+            ;If R2 is 0 we skip to NO_FRACTION
+            
+            JSR   LASTCALC      ;7
+            
+NO_FRACTION:
+            ;CONVERT R4 (HOURS) INTO ASCII TO PRINT
+            ;CONVERT R2 (MIN) INTO ASCII TO PRINT
+            ADD   R2, R2, R3        ; Add the minutes with the original time (since R3 holds the start time in minutes)
+                                ;8
+            JSR   CONVERT_TO_ASCII
+            ; End of the program
+            
+
+       
+EXIT        TRAP X25   ; HALT
+
+;__SubRoutine_________________________________________________________________________
+GET_CHAR    PUTS                ; 2 THEN 4
+            GETC
+            OUT
+            ADD     R2,R0, #0   ; Store value into R2 
+            ADD     R2,R2,R3    ; Converting to ASCII R2 = "A"
+            GETC
+            OUT
+            ADD     R4,R0,#0    ; Store value into R3
+            ADD     R4,R4,R3    ;Converting to ASCII R4 = "B"
+            GETC
+            OUT
+            ADD     R5,R0, #0   ; Store value into R5
+            ADD     R5,R5,R3    ; Converting to ASCII R5 = "C"
+            GETC
+            OUT
+            ADD     R6,R0,#0    ; Store value into R6
+            ADD     R6,R6,R3    ;Converting to ASCII R6 = "D"
+            ;JSR     CONVERT_TENS_PLACE
+        
+            LD      R1, TEN
+            ST      R4, SaveR4
+            AND     R4,R4, #0   ;Clear R4
+            
+
+MULTITENA:
+
+            ADD     R4,R4,R2   ;Add tens value to itself 10 times
+            ADD     R1,R1, #-1  ;decreasing counter
+            BRp     MULTITENA    ;Continue loop until 0
+            
+            AND     R2, R2, #0  ;Clear R2
+            ADD     R2,R2,R4    ;Move R4 result back to R2 
+            LD      R4, SaveR4  ;Loading original value for "B"
+            ADD     R2 , R2 , R4 ;Adding "A" tens place and "B" result in R2 
+            ;R2 Successfully holds the hour "(HH:--)" portion
+            
+            LD      R1, TEN
+            AND     R4,R4, #0   ;Clear R4
+MULTITENC:
+            ADD     R4,R4,R5   ;Add tens value to itself 10 times
+            ADD     R1,R1, #-1  ;decreasing counter
+            BRp     MULTITENC    ;Continue loop until 0
+            
+            AND     R5, R5, #0  ;Clear R5
+            ADD     R5,R5,R4    ;Move result to R5 
+            ADD     R5, R5 , R6 ;Adding "C" and "D" together 
+            ; R5 Successfully holds the minutes "(--:MM)" Portion
+            RET
+;_SubRoutine^^^________________________________________________________________________
+
+STARTCALC:                      ;3 THEN 5
+            ;(HH:--) Saved in R2
+            ;(--:MM) Saved in R5  
+            LD      R1, HOUR    ;Load 60
+            AND     R4,R4, #0   ;Clear R4
+
+MULTISIXTY:
+
+            ADD     R4,R4,R2    ;Add tens value to itself 60 times
+            ADD     R1,R1, #-1  ;decreasing counter
+            BRp     MULTISIXTY  ;Continue loop until 0
+
+            AND     R3,R3, #0   ;Clear R3
+            ADD     R3,R3, R4   ;Move R4 result back to R3 
+            ADD     R3,R3, R5   ;Adding HH and MM result in R3 
+            ;R3 Successfully holds the hour combined HH and MM as just MINUTES
+
+            RET
+;_SubRoutine^^^________________________________________________________________________
+
+            
+LASTCALC:                       ;7
+            LD      R1, HOUR    ;Load 60
+            AND     R4,R4, #0   ;Clear R4
+            
+
+FRACTOMIN:
+
+            ADD     R4,R4,R2    ;Add tens value to itself 60 times
+            ADD     R1,R1, #-1  ;decreasing counter
+            BRp     MULTISIXTY  ;Continue loop until 0
+
+            AND     R2,R2, #0   ;Clear R2
+            ADD     R2,R2, R4   ;Move R4 result back to R2 
+            ;R2 Successfully holds the final minutes no longer fraction
+            RET
+;_SubRoutine^^^________________________________________________________________________
+
+CONVERT_TO_ASCII:                   ;8
+            LD    R1, TEN           ; Load 10 into R1
+            LD    R5, ASCII
+            ADD   R6, R6, #0
+            ST    R2, MINFROMDIV    ; Store original MIN
+            ST    R4, HOURSFROMDIV  ; Store original HOURS
+
+            
+
+CONVERT_LOOP_HOURS:
+            ; R4 contains the decimal value of hours
+            
+            ; Divide by 10 to get the tens place
+            ADD   R2, R2, #0        ; Clear R2 for storing
+            ADD   R4, R4, #-10      ;Subtract 10 to check if R4 is negative
+            BRn   HOUR_#_PLACE      ;If negative, proceed to handling tens place
+            
+            ; If R4 is positive or zero, there's no tens place
+            ADD   R4, R4, R1        ;Add 10 since we subtracted it
+            ADD   R2, R4, R5        ;Convert units place to ASCII in clear R2
+            ST    R0, ASCIIHOURS#   ;Save ASCII value in SaveR2 for later use
+            BR    CONVERT_DONE      ; End conversion
+            
+HOUR_#_PLACE:
+            ADD   R4, R4, #-10      ;Divide by 10 to get the tens place
+            ADD   R0, R4, R5        ;Convert tens place to ASCII
+            ST    R0, ASCIIHOURS##  ;Save ASCII value in SaveR2 for later use
+            BR    CONVERT_LOOP_HOURS;Repeat conversion loop
+            
+CONVERT_DONE:
+            RET
+;_SubRoutine^^^________________________________________________________________________
+
+
+CONVERT_ASC_TO_DEC  .FILL #-48
+ASCII	            .FILL #48 
+TEN                 .FILL  #10
+
+START_TIME          .BLKW 2
+END_TIME            .BLKW 2
+PROMPT_START        .STRINGZ "Enter start time using military Time(HH:MM): "
+PROMPT_END          .STRINGZ "\nEnter end time using military Time(HH:MM): "
+ERRORMSG            .STRINGZ "\nNot a valid input"
+
+SaveR1              .FILL   x0000
+SaveR2              .FILL   x0000
+SaveR3              .FILL   x0000
+SaveR4              .FILL   x0000
+SaveR5              .FILL   x0000
+SaveR6              .FILL   x0000
+Start_HH            .FILL   x0000
+Start_MM            .FILL   x0000
+End_HH              .FILL   x0000
+End_MM              .FILL   x0000
+STARTINMIN          .FILL   x0000
+ENDINMIN            .FILL   x0000
+HOURSFROMDIV        .FILL   x0000
+MINFROMDIV          .FILL   x0000
+ASCIIHOURS#         .FILL   x0000
+ASCIIHOURS##        .FILL   x0000
+ASCIIMIN#           .FILL   x0000
+ASCIIMIN##          .FILL   x0000
+HOUR                .FILL   #60
+DIVIDEBYHOUR        .FILL   #-60
+NEW_LINE            .STRINGZ "\n"
+
+    .END
